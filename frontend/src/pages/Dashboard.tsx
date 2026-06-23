@@ -1,0 +1,182 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+const API = "http://127.0.0.1:8000";
+
+export default function Dashboard() {
+  const [user, setUser] = useState<any>(null);
+  const [habits, setHabits] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const navigate = useNavigate();
+
+  const getToken = () => localStorage.getItem("token");
+
+  useEffect(() => {
+    const token = getToken();
+
+    if (!token) {
+      window.location.href = "/";
+      return;
+    }
+
+    fetch(`${API}/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => setUser(data.user));
+
+    fetch(`${API}/habits`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => setHabits(data))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const logout = () => {
+    localStorage.removeItem("token");
+    window.location.href = "/";
+  };
+
+  const activeHabits = habits.length;
+
+  const today = new Date().toISOString().split("T")[0];
+
+  const completedToday = habits.filter((h) =>
+    h.completed_dates?.includes(today)
+  ).length;
+
+  const maxStreak = habits.reduce(
+    (max, h) => Math.max(max, h.streak || 0),
+    0
+  );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-gray-950 to-gray-900 text-white">
+        <div className="animate-pulse text-gray-400">
+          Loading your dashboard...
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-linear-to-br from-gray-950 via-gray-900 to-gray-950 text-white px-6 py-10">
+
+      {/* TOP BAR */}
+      <div className="flex justify-between items-center mb-10">
+
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">
+            HabitFlow
+          </h1>
+          <p className="text-gray-400 text-sm">
+            Build discipline, one day at a time
+          </p>
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            onClick={() => navigate("/habits")}
+            className="px-4 py-2 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:opacity-90 transition shadow-lg shadow-blue-900/30"
+          >
+            Habits
+          </button>
+
+          <button
+            onClick={logout}
+            className="px-4 py-2 rounded-xl bg-red-600/80 hover:bg-red-600 transition"
+          >
+            Logout
+          </button>
+        </div>
+      </div>
+
+      {/* USER CARD */}
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-8 backdrop-blur-md">
+        <h2 className="text-lg font-semibold mb-2">
+          Welcome back 👋
+        </h2>
+
+        {user ? (
+          <div className="text-gray-300 text-sm space-y-1">
+            <p>
+              <span className="text-gray-500">Email:</span>{" "}
+              {user.email}
+            </p>
+            <p>
+              <span className="text-gray-500">User ID:</span>{" "}
+              {user.user_id}
+            </p>
+          </div>
+        ) : (
+          <p className="text-gray-500">Loading user...</p>
+        )}
+      </div>
+
+      {/* STATS */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+
+        <div className="bg-white/5 border border-white/10 p-6 rounded-2xl hover:scale-[1.02] transition">
+          <p className="text-gray-400 text-sm">Active Habits</p>
+          <p className="text-4xl font-bold mt-2 text-blue-400">
+            {activeHabits}
+          </p>
+        </div>
+
+        <div className="bg-white/5 border border-white/10 p-6 rounded-2xl hover:scale-[1.02] transition">
+          <p className="text-gray-400 text-sm">Completed Today</p>
+          <p className="text-4xl font-bold mt-2 text-green-400">
+            {completedToday}
+          </p>
+        </div>
+
+        <div className="bg-white/5 border border-white/10 p-6 rounded-2xl hover:scale-[1.02] transition">
+          <p className="text-gray-400 text-sm">Best Streak</p>
+          <p className="text-4xl font-bold mt-2 text-yellow-400">
+            {maxStreak} 🔥
+          </p>
+        </div>
+      </div>
+
+      {/* HABITS PREVIEW */}
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md">
+
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold">
+            Your Habits
+          </h2>
+
+          <button
+            onClick={() => navigate("/habits")}
+            className="text-sm text-blue-400 hover:text-blue-300"
+          >
+            View all →
+          </button>
+        </div>
+
+        {habits.length === 0 ? (
+          <p className="text-gray-500">
+            No habits yet. Start building your first habit 🚀
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {habits.slice(0, 4).map((h) => (
+              <div
+                key={h.id}
+                className="flex justify-between items-center bg-black/30 p-3 rounded-xl border border-white/10"
+              >
+                <span className="text-gray-200">{h.title}</span>
+                <span className="text-sm text-gray-400">
+                  🔥 {h.streak}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
