@@ -41,7 +41,7 @@ users_collection = db["users"]
 
 SECRET_KEY = "mysecretkey123"
 ALGORITHM = "HS256"
-TOKEN_EXPIRE_HOURS = 1
+TOKEN_EXPIRE_HOURS = 24
 
 # ==================================
 # PASSWORD HASHING
@@ -65,6 +65,9 @@ security = HTTPBearer()
 class User(BaseModel):
     email: str
     password: str
+
+class HabitDate(BaseModel):
+    date: str
 
 #token verification
 def get_current_user(token=Depends(security)):
@@ -233,12 +236,11 @@ habits_collection = db["habits"]
 def create_habit(habit: Habit, user=Depends(get_current_user)):
 
     new_habit = {
-        "user_id": user["user_id"],
-        "title": habit.title,
-        "created_at": datetime.utcnow(),
-        "streak": 0,
-        "completed_dates": []
-    }
+    "user_id": user["user_id"],
+    "title": habit.title,
+    "created_at": datetime.utcnow(),
+    "completed_dates": []
+}
 
     habits_collection.insert_one(new_habit)
 
@@ -255,18 +257,18 @@ def get_habits(user=Depends(get_current_user)):
         result.append({
             "id": str(h["_id"]),
             "title": h["title"],
-            "streak": h["streak"],
             "completed_dates": h["completed_dates"]
         })
 
     return result
 
 
-@app.post("/habits/{habit_id}/complete")
-def complete_habit(habit_id: str, user=Depends(get_current_user)):
-
-    today = str(date.today())
-
+@app.post("/habits/{habit_id}/toggle")
+def toggle_habit(
+    habit_id: str,
+    data: HabitDate,
+    user=Depends(get_current_user)
+):
     habit = habits_collection.find_one({
         "_id": ObjectId(habit_id),
         "user_id": user["user_id"]
@@ -275,37 +277,48 @@ def complete_habit(habit_id: str, user=Depends(get_current_user)):
     if not habit:
         return {"error": "Habit not found"}
 
-    if today not in habit["completed_dates"]:
+    selected_date = data.date
+
+    if selected_date in habit["completed_dates"]:
+
         habits_collection.update_one(
             {"_id": ObjectId(habit_id)},
             {
-                "$push": {"completed_dates": today},
-                "$inc": {"streak": 1}
+                "$pull": {
+                    "completed_dates": selected_date
+                }
             }
         )
 
-    return {"message": "Marked complete"}
+        return {"message": "Habit unchecked"}
 
-@app.post("/habits/{habit_id}/undo")
-def undo_habit(habit_id: str, user=Depends(get_current_user)):
+    habits_collection.update_one(
+        {"_id": ObjectId(habit_id)},
+        {
+            "$push": {
+                "completed_dates": selected_date
+            }
+        }
+    )
 
-    today = str(date.today())
+    return {"message": "Habit completed"}
 
-    habit = habits_collection.find_one({
+@app.delete("/habits/{habit_id}")
+def delete_habit(
+    habit_id: str,
+    user=Depends(get_current_user)
+):
+    result = habits_collection.delete_one({
         "_id": ObjectId(habit_id),
         "user_id": user["user_id"]
     })
 
-    if not habit:
-        return {"error": "Habit not found"}
+    if result.deleted_count == 0:
+        return {
+            "error": "Habit not found"
+        }
 
-    if today in habit["completed_dates"]:
-        habits_collection.update_one(
-            {"_id": ObjectId(habit_id)},
-            {
-                "$pull": {"completed_dates": today},
-                "$inc": {"streak": -1 if habit["streak"] > 0 else 0}
-            }
-        )
+    return {
+        "message": "Habit deleted"
+    }
 
-    return {"message": "Marked undone"}

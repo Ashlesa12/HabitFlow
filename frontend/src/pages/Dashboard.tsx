@@ -47,10 +47,89 @@ export default function Dashboard() {
     h.completed_dates?.includes(today)
   ).length;
 
-  const maxStreak = habits.reduce(
-    (max, h) => Math.max(max, h.streak || 0),
+  const totalCompletions =
+  habits.reduce(
+    (sum, h) =>
+      sum + (h.completed_dates?.length || 0),
     0
   );
+
+  const progressPercentage =
+  activeHabits === 0
+    ? 0
+    : Math.round(
+        (completedToday / activeHabits) * 100
+      );
+
+  const mostConsistentHabit =
+  habits.length > 0
+    ? habits.reduce((best, current) =>
+        (current.completed_dates?.length || 0) >
+        (best.completed_dates?.length || 0)
+          ? current
+          : best
+      )
+    : null;
+
+  const currentMonth =
+  new Date().toISOString().slice(0, 7);
+
+const monthlyCompletions =
+  habits.reduce(
+    (sum, h) =>
+      sum +
+      (h.completed_dates?.filter(
+        (d: string) =>
+          d.startsWith(currentMonth)
+      ).length || 0),
+    0
+  );
+
+  function calculateStreak(completedDates: string[]) {
+  if (!completedDates?.length) return 0;
+
+  const completed = new Set(completedDates);
+
+  let streak = 0;
+  let current = new Date();
+
+  const today =
+    current.toISOString().split("T")[0];
+
+  if (!completed.has(today)) {
+    current.setDate(
+      current.getDate() - 1
+    );
+  }
+
+  while (true) {
+    const dateString =
+      current.toISOString().split("T")[0];
+
+    if (completed.has(dateString)) {
+      streak++;
+
+      current.setDate(
+        current.getDate() - 1
+      );
+    } else {
+      break;
+    }
+  }
+
+  return streak;
+}
+
+const bestStreak = habits.reduce(
+  (max, h) =>
+    Math.max(
+      max,
+      calculateStreak(
+        h.completed_dates || []
+      )
+    ),
+  0
+);
 
   if (loading) {
     return (
@@ -61,6 +140,8 @@ export default function Dashboard() {
       </div>
     );
   }
+
+
 
   return (
     <div className="min-h-screen bg-linear-to-br from-gray-950 via-gray-900 to-gray-950 text-white px-6 py-10">
@@ -117,7 +198,7 @@ export default function Dashboard() {
       </div>
 
       {/* STATS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
 
         <div className="bg-white/5 border border-white/10 p-6 rounded-2xl hover:scale-[1.02] transition">
           <p className="text-gray-400 text-sm">Active Habits</p>
@@ -134,11 +215,82 @@ export default function Dashboard() {
         </div>
 
         <div className="bg-white/5 border border-white/10 p-6 rounded-2xl hover:scale-[1.02] transition">
-          <p className="text-gray-400 text-sm">Best Streak</p>
-          <p className="text-4xl font-bold mt-2 text-yellow-400">
-            {maxStreak} 🔥
-          </p>
-        </div>
+  <p className="text-gray-400 text-sm">
+    Best Streak
+  </p>
+
+  <p className="text-4xl font-bold mt-2 text-orange-400">
+    🔥 {bestStreak}
+  </p>
+</div>
+
+        <div className="bg-white/5 border border-white/10 p-6 rounded-2xl hover:scale-[1.02] transition">
+ 
+  <p className="text-gray-400 text-sm">
+    Total Completions
+  </p>
+
+  <p className="text-4xl font-bold mt-2 text-yellow-400">
+    {totalCompletions}
+  </p>
+</div>
+
+<div className="bg-white/5 border border-white/10 p-6 rounded-2xl hover:scale-[1.02] transition">
+  <p className="text-gray-400 text-sm">
+    Today's Progress
+  </p>
+
+  <p className="text-4xl font-bold mt-2 text-cyan-400">
+    {progressPercentage}%
+  </p>
+
+  <div className="w-full h-2 bg-white/10 rounded-full mt-4">
+    <div
+      className="h-2 bg-cyan-500 rounded-full"
+      style={{
+        width: `${progressPercentage}%`,
+      }}
+    />
+  </div>
+</div>
+
+<div className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:scale-[1.02] transition">
+  <h3 className="font-semibold mb-2">
+    🏆 Most Consistent
+  </h3>
+
+  {mostConsistentHabit ? (
+    <>
+      <p className="text-lg">
+        {mostConsistentHabit.title}
+      </p>
+
+      <p className="text-sm text-gray-400">
+        {mostConsistentHabit.completed_dates?.length || 0}
+        {" "}completions
+      </p>
+    </>
+  ) : (
+    <p className="text-gray-500">
+      No habits yet
+    </p>
+  )}
+</div>
+
+<div className="bg-white/5 border border-white/10 p-6 rounded-2xl hover:scale-[1.02] transition">
+  <p className="text-gray-400 text-sm">
+    This Month
+  </p>
+
+  <p className="text-4xl font-bold mt-2 text-purple-400">
+    {monthlyCompletions}
+  </p>
+
+  <p className="text-sm text-gray-500 mt-2">
+    completions
+  </p>
+</div>
+
       </div>
 
       {/* HABITS PREVIEW */}
@@ -157,21 +309,30 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {habits.length === 0 ? (
-          <p className="text-gray-500">
-            No habits yet. Start building your first habit 🚀
+       {habits.length === 0 ? (
+  <p className="text-gray-500">
+    No habits yet. Start building your first habit 🚀
+  </p>
+) : (
+  <div className="space-y-2">
+    {habits.slice(0, 4).map((h) => (
+      <div
+        key={h.id}
+        className="flex justify-between items-center bg-black/30 p-3 rounded-xl border border-white/10"
+      >
+        <div>
+          <p className="text-gray-200 font-medium">
+            {h.title}
           </p>
-        ) : (
-          <div className="space-y-2">
-            {habits.slice(0, 4).map((h) => (
-              <div
-                key={h.id}
-                className="flex justify-between items-center bg-black/30 p-3 rounded-xl border border-white/10"
-              >
-                <span className="text-gray-200">{h.title}</span>
-                <span className="text-sm text-gray-400">
-                  🔥 {h.streak}
-                </span>
+
+          <p className="text-xs text-gray-500">
+            {h.completed_dates?.length || 0} completions
+          </p>
+        </div>
+
+        <span className="text-sm text-yellow-400 font-medium">
+          🔥 {calculateStreak(h.completed_dates || [])}
+        </span>
               </div>
             ))}
           </div>
