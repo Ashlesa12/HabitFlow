@@ -75,6 +75,26 @@ const deleteHabit = async (id: string) => {
   fetchHabits();
 };
 
+// toggle rest day
+
+const toggleRestDay = async (
+  habitId: string,
+  date: string
+) => {
+  await fetch(`${API}/habits/${habitId}/rest`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      date,
+    }),
+  });
+
+  fetchHabits();
+};
+
 // MONTH NAVIGATION
 
 const previousMonth = () => {
@@ -98,10 +118,12 @@ const currentMonthIndex =
 const currentYear =
   new Date().getFullYear();
 
-function calculateStreak(completedDates: string[]) {
-  if (!completedDates?.length) return 0;
-
-  const completed = new Set(completedDates);
+function calculateStreak(
+  completedDates: string[],
+  restDates: string[] = []
+) {
+  const completed = new Set(completedDates || []);
+  const rest = new Set(restDates || []);
 
   let streak = 0;
 
@@ -110,10 +132,13 @@ function calculateStreak(completedDates: string[]) {
   const today =
     current.toISOString().split("T")[0];
 
-  if (!completed.has(today)) {
-    current.setDate(
-      current.getDate() - 1
-    );
+  // If today is neither completed nor rest,
+  // start checking from yesterday.
+  if (
+    !completed.has(today) &&
+    !rest.has(today)
+  ) {
+    current.setDate(current.getDate() - 1);
   }
 
   while (true) {
@@ -121,14 +146,16 @@ function calculateStreak(completedDates: string[]) {
       current.toISOString().split("T")[0];
 
     if (completed.has(dateString)) {
+      // Completed day increases streak
       streak++;
-
-      current.setDate(
-        current.getDate() - 1
-      );
+    } else if (rest.has(dateString)) {
+      // Rest day keeps streak alive
     } else {
+      // Empty day breaks streak
       break;
     }
+
+    current.setDate(current.getDate() - 1);
   }
 
   return streak;
@@ -249,13 +276,13 @@ function calculateStreak(completedDates: string[]) {
       className="border-b border-white/5"
     >
 
-    <td className="sticky left-0 bg-gray-900 p-4 min-w-[130px]">
+    <td className="sticky left-0 bg-gray-900 p-4 min-w-32.5">
   <p className="font-medium">
     {habit.title}
   </p>
 
   <p className="text-xs text-yellow-400 mt-1">
-    🔥 {calculateStreak(habit.completed_dates)} day streak
+    🔥 {calculateStreak(habit.completed_dates, habit.rest_dates)} day streak
   </p>
 
   <p className="text-xs text-gray-400">
@@ -281,6 +308,9 @@ function calculateStreak(completedDates: string[]) {
                   const completed =
                     habit.completed_dates?.includes(fullDate);
 
+                    const isRest =
+                    habit.rest_dates?.includes(fullDate);
+
                   return (
                     <td
                       key={day}
@@ -289,33 +319,56 @@ function calculateStreak(completedDates: string[]) {
                       <button
   disabled={isFuture}
   onClick={async () => {
-    if (isFuture) return;
+  if (isFuture) return;
 
-    await fetch(
-      `${API}/habits/${habit.id}/toggle`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          date: fullDate,
-        }),
-      }
+  if (!completed && !isRest) {
+    // Empty → Completed
+    await fetch(`${API}/habits/${habit.id}/toggle`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        date: fullDate,
+      }),
+    });
+  }
+
+  else if (completed) {
+    // Completed → Rest
+    await toggleRestDay(
+      habit.id,
+      fullDate
     );
+  }
 
-    fetchHabits();
-  }}
+  else if (isRest) {
+    // Rest → Empty
+    await toggleRestDay(
+      habit.id,
+      fullDate
+    );
+  }
+
+  fetchHabits();
+}}
+
   className={`w-8 h-8 rounded-lg transition ${
     completed
       ? "bg-green-500 text-white"
+      : isRest
+      ? "bg-blue-500 text-white"
       : isFuture
       ? "bg-white/5 text-gray-600 cursor-not-allowed"
       : "bg-white/10 hover:bg-white/20"
   }`}
 >
-  {completed ? "✓" : ""}
+  {completed
+  ? "✓"
+  : isRest
+  ? "🌙"
+  : ""}
 </button>
                     </td>
                   );

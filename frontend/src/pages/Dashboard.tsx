@@ -64,8 +64,14 @@ export default function Dashboard() {
   const mostConsistentHabit =
   habits.length > 0
     ? habits.reduce((best, current) =>
-        (current.completed_dates?.length || 0) >
-        (best.completed_dates?.length || 0)
+        calculateStreak(
+          current.completed_dates || [],
+          current.rest_dates || []
+        ) >
+        calculateStreak(
+          best.completed_dates || [],
+          best.rest_dates || []
+        )
           ? current
           : best
       )
@@ -85,21 +91,26 @@ const monthlyCompletions =
     0
   );
 
-  function calculateStreak(completedDates: string[]) {
-  if (!completedDates?.length) return 0;
-
-  const completed = new Set(completedDates);
+  function calculateStreak(
+  completedDates: string[],
+  restDates: string[] = []
+) {
+  const completed = new Set(completedDates || []);
+  const rest = new Set(restDates || []);
 
   let streak = 0;
+
   let current = new Date();
 
-  const today =
-    current.toISOString().split("T")[0];
+  // If today is neither completed nor a rest day,
+  // start checking from yesterday.
+  const today = current.toISOString().split("T")[0];
 
-  if (!completed.has(today)) {
-    current.setDate(
-      current.getDate() - 1
-    );
+  if (
+    !completed.has(today) &&
+    !rest.has(today)
+  ) {
+    current.setDate(current.getDate() - 1);
   }
 
   while (true) {
@@ -107,14 +118,16 @@ const monthlyCompletions =
       current.toISOString().split("T")[0];
 
     if (completed.has(dateString)) {
+      // Completed day increases streak
       streak++;
-
-      current.setDate(
-        current.getDate() - 1
-      );
+    } else if (rest.has(dateString)) {
+      // Rest day keeps streak alive
     } else {
+      // Empty day breaks streak
       break;
     }
+
+    current.setDate(current.getDate() - 1);
   }
 
   return streak;
@@ -125,8 +138,9 @@ const bestStreak = habits.reduce(
     Math.max(
       max,
       calculateStreak(
-        h.completed_dates || []
-      )
+      h.completed_dates || [],
+      h.rest_dates || []
+    )
     ),
   0
 );
@@ -261,13 +275,17 @@ const bestStreak = habits.reduce(
 
   {mostConsistentHabit ? (
     <>
-      <p className="text-lg">
+      <p className="text-lg font-medium">
         {mostConsistentHabit.title}
       </p>
 
-      <p className="text-sm text-gray-400">
-        {mostConsistentHabit.completed_dates?.length || 0}
-        {" "}completions
+      <p className="text-sm text-yellow-400 mt-1">
+        🔥{" "}
+        {calculateStreak(
+          mostConsistentHabit.completed_dates || [],
+          mostConsistentHabit.rest_dates || []
+        )}{" "}
+        day streak
       </p>
     </>
   ) : (
@@ -331,7 +349,7 @@ const bestStreak = habits.reduce(
         </div>
 
         <span className="text-sm text-yellow-400 font-medium">
-          🔥 {calculateStreak(h.completed_dates || [])}
+          🔥 {calculateStreak(h.completed_dates || [],   h.rest_dates || [])}
         </span>
               </div>
             ))}
