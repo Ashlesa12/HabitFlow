@@ -39,7 +39,8 @@ app.add_middleware(
 # DATABASE
 # ==================================
 
-client = MongoClient(os.getenv("MONGODB_URL"))
+
+client = MongoClient(os.getenv("MONGODB_URI"))
 
 db = client["habitflow_db"]
 
