@@ -41,8 +41,7 @@ MONGODB_URI = os.getenv("MONGODB_URI")
 
 client = MongoClient(
     MONGODB_URI,
-    tls=True,
-    tlsAllowInvalidCertificates=True
+    tls=True
 )
 
 db = client["habitflow"]
