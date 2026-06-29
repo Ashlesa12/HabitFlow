@@ -26,6 +26,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "https://habit-flow-taupe.vercel.app"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -51,7 +52,7 @@ users_collection = db["users"]
 
 SECRET_KEY = os.getenv("JWT_SECRET")
 ALGORITHM = "HS256"
-TOKEN_EXPIRE_HOURS = 24
+TOKEN_EXPIRE_HOURS = 1
 
 # ==================================
 # PASSWORD HASHING
