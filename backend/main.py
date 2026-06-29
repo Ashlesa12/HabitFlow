@@ -37,9 +37,15 @@ app.add_middleware(
 # ==================================
 
 
-client = MongoClient(os.getenv("MONGODB_URI"))
+MONGODB_URI = os.getenv("MONGODB_URI")
 
-db = client["habitflow_db"]
+client = MongoClient(
+    MONGODB_URI,
+    tls=True,
+    tlsAllowInvalidCertificates=True
+)
+
+db = client["habitflow"]
 
 users_collection = db["users"]
 
