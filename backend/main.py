@@ -9,6 +9,10 @@ from fastapi.security import HTTPBearer
 from jose import jwt, JWTError
 from fastapi.middleware.cors import CORSMiddleware
 from bson import ObjectId
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # ==================================
 # APP
@@ -32,14 +36,14 @@ app.add_middleware(
 # DATABASE
 # ==================================
 
-client = MongoClient("mongodb://localhost:27017/")
+client = MongoClient(os.getenv("MONGODB_URL"))
 
 db = client["habitflow_db"]
 
 users_collection = db["users"]
 
 
-SECRET_KEY = "mysecretkey123"
+SECRET_KEY = os.getenv("JWT_SECRET")
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_HOURS = 24
 
