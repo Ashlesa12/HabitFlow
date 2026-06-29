@@ -14,9 +14,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-print(os.getenv("MONGODB_URI"))
-print(os.getenv("JWT_SECRET"))
-
 # ==================================
 # APP
 # ==================================
