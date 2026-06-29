@@ -239,7 +239,8 @@ def create_habit(habit: Habit, user=Depends(get_current_user)):
     "user_id": user["user_id"],
     "title": habit.title,
     "created_at": datetime.utcnow(),
-    "completed_dates": []
+    "completed_dates": [],
+    "rest_dates": []
 }
 
     habits_collection.insert_one(new_habit)
@@ -257,7 +258,8 @@ def get_habits(user=Depends(get_current_user)):
         result.append({
             "id": str(h["_id"]),
             "title": h["title"],
-            "completed_dates": h["completed_dates"]
+            "completed_dates": h["completed_dates"],
+            "rest_dates": h.get("rest_dates", [])
         })
 
     return result
@@ -295,6 +297,15 @@ def toggle_habit(
     habits_collection.update_one(
         {"_id": ObjectId(habit_id)},
         {
+            "$pull": {
+                "rest_dates": selected_date
+            }
+        }
+    )
+
+    habits_collection.update_one(
+        {"_id": ObjectId(habit_id)},
+        {
             "$push": {
                 "completed_dates": selected_date
             }
@@ -321,4 +332,63 @@ def delete_habit(
     return {
         "message": "Habit deleted"
     }
+
+# rest days
+
+@app.post("/habits/{habit_id}/rest")
+def toggle_rest_day(
+    habit_id: str,
+    data: HabitDate,
+    user=Depends(get_current_user)
+):
+    habit = habits_collection.find_one({
+        "_id": ObjectId(habit_id),
+        "user_id": user["user_id"]
+    })
+
+    if not habit:
+        return {"error": "Habit not found"}
+
+    selected_date = data.date
+
+    completed_dates = habit.get("completed_dates", [])
+    rest_dates = habit.get("rest_dates", [])
+
+    # Already a rest day -> remove it
+    if selected_date in rest_dates:
+
+        habits_collection.update_one(
+            {"_id": ObjectId(habit_id)},
+            {
+                "$pull": {
+                    "rest_dates": selected_date
+                }
+            }
+        )
+
+        return {"message": "Rest day removed"}
+
+    # If completed, remove completion first
+    if selected_date in completed_dates:
+
+        habits_collection.update_one(
+            {"_id": ObjectId(habit_id)},
+            {
+                "$pull": {
+                    "completed_dates": selected_date
+                }
+            }
+        )
+
+    # Add as rest day
+    habits_collection.update_one(
+        {"_id": ObjectId(habit_id)},
+        {
+            "$push": {
+                "rest_dates": selected_date
+            }
+        }
+    )
+
+    return {"message": "Rest day added"}
 
