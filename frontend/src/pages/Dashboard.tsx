@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, LogOut, CheckCircle2, TrendingUp, Calendar, Trophy, Zap, ListTodo } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL;
 
@@ -10,12 +9,16 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   const navigate = useNavigate();
+  const token = localStorage.getItem("token");
 
-  const getToken = () => localStorage.getItem("token");
+  const todayFormatted = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 
   useEffect(() => {
-    const token = getToken();
-
     if (!token) {
       window.location.href = "/";
       return;
@@ -33,7 +36,7 @@ export default function Dashboard() {
       .then((res) => res.json())
       .then((data) => setHabits(data))
       .finally(() => setLoading(false));
-  }, []);
+  }, [token]);
 
   const logout = () => {
     localStorage.removeItem("token");
@@ -41,61 +44,33 @@ export default function Dashboard() {
   };
 
   const activeHabits = habits.length;
-
   const today = new Date().toISOString().split("T")[0];
 
   const completedToday = habits.filter((h) =>
     h.completed_dates?.includes(today)
   ).length;
 
-  const totalCompletions =
-  habits.reduce(
-    (sum, h) =>
-      sum + (h.completed_dates?.length || 0),
+  const totalCompletions = habits.reduce(
+    (sum, h) => sum + (h.completed_dates?.length || 0),
     0
   );
 
   const progressPercentage =
-  activeHabits === 0
-    ? 0
-    : Math.round(
-        (completedToday / activeHabits) * 100
-      );
+    activeHabits === 0 ? 0 : Math.round((completedToday / activeHabits) * 100);
 
-  const mostConsistentHabit =
-  habits.length > 0
-    ? habits.reduce((best, current) =>
-        calculateStreak(
-          current.completed_dates || [],
-          current.rest_dates || []
-        ) >
-        calculateStreak(
-          best.completed_dates || [],
-          best.rest_dates || []
-        )
-          ? current
-          : best
-      )
-    : null;
+  const currentMonthStr = new Date().toLocaleString("default", { month: "long" });
+  const currentMonthISO = new Date().toISOString().slice(0, 7);
 
-  const currentMonth =
-  new Date().toISOString().slice(0, 7);
-
-  const monthlyCompletions =
-  habits.reduce(
+  const monthlyCompletions = habits.reduce(
     (sum, h) =>
       sum +
       (h.completed_dates?.filter(
-        (d: string) =>
-          d.startsWith(currentMonth)
+        (d: string) => d.startsWith(currentMonthISO)
       ).length || 0),
     0
   );
 
-  function calculateStreak(
-    completedDates: string[],
-    restDates: string[] = []
-  ) {
+  function calculateStreak(completedDates: string[], restDates: string[] = []) {
     const completed = new Set(completedDates || []);
     const rest = new Set(restDates || []);
 
@@ -103,16 +78,12 @@ export default function Dashboard() {
     let current = new Date();
     const today = current.toISOString().split("T")[0];
 
-    if (
-      !completed.has(today) &&
-      !rest.has(today)
-    ) {
+    if (!completed.has(today) && !rest.has(today)) {
       current.setDate(current.getDate() - 1);
     }
 
     while (true) {
-      const dateString =
-        current.toISOString().split("T")[0];
+      const dateString = current.toISOString().split("T")[0];
 
       if (completed.has(dateString)) {
         streak++;
@@ -132,222 +103,258 @@ export default function Dashboard() {
     (max, h) =>
       Math.max(
         max,
-        calculateStreak(
-          h.completed_dates || [],
-          h.rest_dates || []
-        )
+        calculateStreak(h.completed_dates || [], h.rest_dates || [])
       ),
     0
   );
 
+  const mostConsistentHabit =
+    habits.length > 0
+      ? habits.reduce((best, current) =>
+          calculateStreak(current.completed_dates || [], current.rest_dates || []) >
+          calculateStreak(best.completed_dates || [], best.rest_dates || [])
+            ? current
+            : best
+        )
+      : null;
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-amber-50/60 text-stone-800">
-        <div className="flex flex-col items-center gap-3">
-          <svg className="animate-spin h-6 w-6 text-emerald-700" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-          </svg>
-          <span className="text-stone-500 font-medium text-sm">Gathering your habits...</span>
+      <div className="min-h-screen flex items-center justify-center bg-[#F3E8E0] text-slate-900 px-4">
+        <div className="flex flex-col items-center gap-3 rounded-[36px] border border-slate-200 bg-white p-8 shadow-sm">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900" />
+          <span className="text-sm font-medium text-slate-500">
+            Gathering your dashboard...
+          </span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-amber-50/40 text-stone-800 px-4 sm:px-8 py-10 font-sans selection:bg-amber-200">
-      <div className="max-w-5xl mx-auto space-y-8">
+    <div className="min-h-screen bg-[#F3E8E0] text-slate-900 px-4 md:px-6 py-6 md:py-10">
+      <div className="mx-auto max-w-350 space-y-10">
         
-        {/* TOP BAR */}
-        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 bg-white border border-stone-200/60 rounded-3xl p-6 shadow-sm">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 bg-emerald-100 rounded-lg text-emerald-800 inline-flex">
-                <Sparkles size={18} />
-              </span>
-              <h1 className="text-2xl font-serif font-bold text-stone-900 tracking-tight">
-                HabitFlow
-              </h1>
+        {/* TOP BRAND NAVIGATION */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-slate-200/60 pb-8">
+          <div className="space-y-4 max-w-2xl">
+            {/* Clean floating date tag */}
+            <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wider text-slate-600 shadow-2xs border border-slate-200/50">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              {todayFormatted}
             </div>
-            <p className="text-stone-500 text-xs mt-1">
-              Build discipline, one day at a time
+            
+            <h1 className="text-4xl md:text-5xl font-light tracking-tight text-slate-900 leading-none">
+              Welcome back to your <span className="font-serif italic font-normal text-slate-800">flow</span> 👋
+            </h1>
+            
+            <p className="text-base text-slate-600 font-medium leading-relaxed">
+              Take a deep breath. Here is a beautiful breakdown of your active habits, historical streaks, and daily performance.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={() => navigate("/habits")}
-              className="px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-amber-50 text-sm font-semibold shadow-sm shadow-emerald-700/10 transition-colors"
+              className="inline-flex items-center justify-center rounded-3xl bg-slate-900 px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800 shadow-xs"
             >
-              My Habits
+              My Habits Page
             </button>
-
             <button
               onClick={logout}
-              className="p-2.5 rounded-xl text-stone-400 hover:text-orange-700 hover:bg-orange-50 transition-colors inline-flex items-center gap-2 text-sm font-medium"
-              title="Logout"
+              className="inline-flex items-center justify-center rounded-3xl bg-white border border-slate-200 px-5 py-3.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 shadow-xs"
             >
-              <LogOut size={18} />
-              <span className="hidden sm:inline">Logout</span>
+              Logout
             </button>
           </div>
         </div>
 
-        {/* PROFILE OVERVIEW */}
-<div className="bg-linear-to-r from-emerald-50/60 to-amber-50/40 border border-emerald-100/60 rounded-3xl p-6 sm:p-8 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-  <div>
-    <h2 className="text-2xl font-serif font-bold text-stone-900 tracking-tight">
-      Welcome back to your flow 👋
-    </h2>
-    <p className="text-stone-500 text-xs mt-1">
-      Take a deep breath. Today is a brand new day to build your streak.
-    </p>
-  </div>
-  
-  {user && (
-    <div className="text-stone-400 text-[11px] font-medium border-t sm:border-t-0 sm:border-l border-stone-200/60 pt-3 sm:pt-0 sm:pl-6 shrink-0">
-      <span className="block text-stone-500 font-semibold text-xs">{user.email}</span>
-      <span className="block text-[10px] opacity-80 mt-0.5 font-mono">UID: {user.user_id}</span>
-    </div>
-  )}
-</div>
-
-        {/* GRID STATS PLATFORM */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          
-          {/* Active Habits */}
-          <div className="bg-white border border-stone-200/60 p-6 rounded-3xl shadow-xs flex items-start justify-between">
-            <div>
-              <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Active Habits</p>
-              <p className="text-4xl font-serif font-bold mt-2 text-stone-900">{activeHabits}</p>
-            </div>
-            <div className="p-2 bg-stone-50 rounded-xl text-stone-500"><ListTodo size={20} /></div>
-          </div>
-
-          {/* Completed Today */}
-          <div className="bg-white border border-stone-200/60 p-6 rounded-3xl shadow-xs flex items-start justify-between">
-            <div>
-              <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Completed Today</p>
-              <p className="text-4xl font-serif font-bold mt-2 text-emerald-700">{completedToday}</p>
-            </div>
-            <div className="p-2 bg-emerald-50 rounded-xl text-emerald-700"><CheckCircle2 size={20} /></div>
-          </div>
-
-          {/* Best Streak */}
-          <div className="bg-white border border-stone-200/60 p-6 rounded-3xl shadow-xs flex items-start justify-between">
-            <div>
-              <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Best Streak</p>
-              <p className="text-4xl font-serif font-bold mt-2 text-amber-600">🔥 {bestStreak}</p>
-            </div>
-            <div className="p-2 bg-amber-50 rounded-xl text-amber-600"><Zap size={20} /></div>
-          </div>
-
-          {/* Total Completions */}
-          <div className="bg-white border border-stone-200/60 p-6 rounded-3xl shadow-xs flex items-start justify-between">
-            <div>
-              <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Total Completions</p>
-              <p className="text-4xl font-serif font-bold mt-2 text-stone-900">{totalCompletions}</p>
-            </div>
-            <div className="p-2 bg-stone-50 rounded-xl text-stone-400"><Trophy size={20} /></div>
-          </div>
-
-          {/* Today's Progress Bar card */}
-          <div className="bg-white border border-stone-200/60 p-6 rounded-3xl shadow-xs sm:col-span-2">
-            <div className="flex justify-between items-start">
+        {/* COMPACT PROGRESS STRIP */}
+        <div className="grid gap-6 lg:grid-cols-[1.6fr_0.9fr]">
+          <div className="rounded-[36px] bg-white p-6 shadow-sm border border-slate-200 flex flex-col justify-between gap-5">
+            <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Today's Progress</p>
-                <p className="text-3xl font-serif font-bold mt-1 text-emerald-800">{progressPercentage}%</p>
+                <p className="text-slate-500 text-sm uppercase tracking-[0.24em]">
+                  Today's focus
+                </p>
+                <h2 className="mt-1 text-2xl font-semibold text-slate-900">
+                  Daily Progress
+                </h2>
               </div>
-              <div className="p-2 bg-stone-50 rounded-xl text-stone-400"><TrendingUp size={20} /></div>
+              <div className="rounded-3xl bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-800 border border-emerald-100">
+                {progressPercentage}% Complete
+              </div>
             </div>
-            <div className="w-full h-2.5 bg-stone-100 rounded-full mt-4 overflow-hidden">
-              <div
-                className="h-full bg-emerald-600 rounded-full transition-all duration-500 ease-out"
-                style={{ width: `${progressPercentage}%` }}
-              />
+
+            <div className="space-y-3">
+              <div className="rounded-3xl bg-slate-100 h-3 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-500"
+                  style={{ width: `${progressPercentage}%` }}
+                />
+              </div>
+              <p className="text-xs text-slate-500 font-medium tracking-wide">
+                Done with {completedToday} out of your {activeHabits} active habits today.
+              </p>
             </div>
           </div>
 
-          {/* Most Consistent */}
-          <div className="bg-white border border-stone-200/60 p-6 rounded-3xl shadow-xs">
-            <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider flex items-center gap-1.5">
-              <span>🏆</span> Most Consistent
-            </p>
-            {mostConsistentHabit ? (
-              <div className="mt-3">
-                <p className="text-base font-bold text-stone-800 truncate">
-                  {mostConsistentHabit.title}
+          {/* USER SYNC STRIP */}
+          <div className="rounded-[36px] bg-white p-6 shadow-sm border border-slate-200 flex flex-col justify-between gap-4">
+            <div>
+              <p className="text-slate-500 text-sm uppercase tracking-[0.24em]">
+                Session info
+              </p>
+              <h3 className="mt-1 text-base font-semibold text-slate-900">
+                Account Status
+              </h3>
+            </div>
+            {user ? (
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-slate-800 truncate">
+                  {user.email}
                 </p>
-                <p className="text-xs text-amber-600 font-medium mt-0.5">
-                  🔥 {calculateStreak(mostConsistentHabit.completed_dates || [], mostConsistentHabit.rest_dates || [])} day streak
+                <p className="text-[11px] text-slate-400 font-mono">
+                  ID: {user.user_id}
                 </p>
               </div>
             ) : (
-              <p className="text-stone-400 text-xs mt-4 italic">No habits yet</p>
+              <p className="text-sm text-slate-400 italic">Offline Mode</p>
+            )}
+          </div>
+        </div>
+
+        {/* CORE STATS GRID */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="rounded-[36px] bg-white p-6 shadow-sm border border-slate-200 flex flex-col justify-between min-h-[135px]">
+            <p className="text-slate-500 text-xs uppercase tracking-[0.2em] font-medium">
+              Active Habits
+            </p>
+            <p className="text-4xl font-semibold text-slate-900 mt-2">
+              {activeHabits}
+            </p>
+          </div>
+
+          <div className="rounded-[36px] bg-white p-6 shadow-sm border border-slate-200 flex flex-col justify-between min-h-[135px]">
+            <p className="text-slate-500 text-xs uppercase tracking-[0.2em] font-medium">
+              Completed Today
+            </p>
+            <p className="text-4xl font-semibold text-emerald-600 mt-2">
+              {completedToday}
+            </p>
+          </div>
+
+          <div className="rounded-[36px] bg-white p-6 shadow-sm border border-slate-200 flex flex-col justify-between min-h-[135px]">
+            <p className="text-slate-500 text-xs uppercase tracking-[0.2em] font-medium">
+              Best Streak
+            </p>
+            <p className="text-4xl font-semibold text-amber-600 mt-2">
+              🔥 {bestStreak} <span className="text-xs font-normal text-slate-400 tracking-normal uppercase">days</span>
+            </p>
+          </div>
+
+          <div className="rounded-[36px] bg-white p-6 shadow-sm border border-slate-200 flex flex-col justify-between min-h-[135px]">
+            <p className="text-slate-500 text-xs uppercase tracking-[0.2em] font-medium">
+              Total Check-ins
+            </p>
+            <p className="text-4xl font-semibold text-slate-900 mt-2">
+              {totalCompletions}
+            </p>
+          </div>
+        </div>
+
+        {/* BOTTOM METRICS SPLIT */}
+        <div className="grid gap-6 lg:grid-cols-[1.1fr_1.4fr]">
+          
+          {/* CONSISTENCY SPOTLIGHT */}
+          <div className="rounded-[36px] bg-white p-6 shadow-sm border border-slate-200 space-y-6">
+            <div>
+              <p className="text-slate-500 text-sm uppercase tracking-[0.24em]">
+                Highlights
+              </p>
+              <h3 className="mt-1 text-xl font-semibold text-slate-900">
+                Consistency Insights
+              </h3>
+            </div>
+            
+            <div className="grid gap-4">
+              <div className="rounded-3xl bg-slate-50 p-4 border border-slate-200/40">
+                <p className="text-xs font-semibold uppercase text-slate-400 tracking-wider">Most Consistent Routine</p>
+                {mostConsistentHabit ? (
+                  <div className="mt-2">
+                    <p className="text-sm font-semibold text-slate-900 truncate">
+                      {mostConsistentHabit.title}
+                    </p>
+                    <p className="text-xs font-bold text-amber-600 mt-0.5">
+                      🔥 {calculateStreak(mostConsistentHabit.completed_dates || [], mostConsistentHabit.rest_dates || [])} day current streak
+                    </p>
+                  </div>
+                ) : (
+                  <p className="mt-1 text-xs text-slate-400 italic">No historical data available</p>
+                )}
+              </div>
+
+              <div className="rounded-3xl bg-slate-50 p-4 border border-slate-200/40">
+                <p className="text-xs font-semibold uppercase text-slate-400 tracking-wider">Volume in {currentMonthStr}</p>
+                <p className="mt-1 text-2xl font-semibold text-slate-900">
+                  {monthlyCompletions} <span className="text-xs font-normal text-slate-500 uppercase tracking-widest pl-1">completions</span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* QUICK SNAPSHOT CONTAINER */}
+          <div className="rounded-[36px] bg-white p-6 shadow-sm border border-slate-200 flex flex-col justify-between gap-6">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-slate-500 text-sm uppercase tracking-[0.24em]">
+                  Snapshot
+                </p>
+                <h3 className="mt-1 text-xl font-semibold text-slate-900">
+                  Routine Overview
+                </h3>
+              </div>
+              <button
+                onClick={() => navigate("/habits")}
+                className="text-xs font-bold text-amber-600 hover:text-amber-700 transition tracking-wider uppercase border-b border-transparent hover:border-amber-600 pb-0.5"
+              >
+                Full sheet →
+              </button>
+            </div>
+
+            {habits.length === 0 ? (
+              <div className="text-center py-10 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
+                <p className="text-slate-400 text-sm font-medium">
+                  Your ritual ledger is currently empty.
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                {habits.slice(0, 4).map((h) => {
+                  const currentStreak = calculateStreak(h.completed_dates || [], h.rest_dates || []);
+                  return (
+                    <div
+                      key={h.id}
+                      className="flex items-center justify-between bg-slate-50 px-5 py-3.5 rounded-2xl border border-slate-200/60"
+                    >
+                      <div className="min-w-0 pr-4">
+                        <p className="text-sm font-semibold text-slate-900 truncate">
+                          {h.title}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {h.completed_dates?.length || 0} total hits
+                        </p>
+                      </div>
+                      <span className="shrink-0 rounded-xl bg-white border border-slate-200 px-3 py-1 text-xs font-semibold text-amber-600">
+                        🔥 {currentStreak}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
 
-          {/* This Month Performance */}
-          <div className="bg-white border border-stone-200/60 p-6 rounded-3xl shadow-xs flex items-start justify-between">
-            <div>
-              <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider">This Month</p>
-              <div className="flex items-baseline gap-1.5 mt-2">
-                <span className="text-4xl font-serif font-bold text-stone-900">{monthlyCompletions}</span>
-                <span className="text-xs text-stone-400 font-medium">hits</span>
-              </div>
-            </div>
-            <div className="p-2 bg-stone-50 rounded-xl text-stone-400"><Calendar size={20} /></div>
-          </div>
-
-        </div>
-
-        {/* HABITS LIST PREVIEW BOX */}
-        <div className="bg-white border border-stone-200/60 rounded-3xl p-6 sm:p-8 shadow-sm">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h2 className="text-lg font-serif font-bold text-stone-900">
-                Your Habits
-              </h2>
-              <p className="text-stone-400 text-xs mt-0.5">Quick glance at your top practices</p>
-            </div>
-
-            <button
-              onClick={() => navigate("/habits")}
-              className="text-xs text-emerald-700 font-bold hover:text-emerald-800 hover:underline transition-all"
-            >
-              View all →
-            </button>
-          </div>
-
-          {habits.length === 0 ? (
-            <div className="text-center py-8 bg-stone-50/50 border border-dashed border-stone-200 rounded-2xl">
-              <p className="text-stone-400 text-sm">
-                No habits yet. Start building your first habit 🚀
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {habits.slice(0, 4).map((h) => (
-                <div
-                  key={h.id}
-                  className="flex justify-between items-center bg-stone-50/60 p-4 rounded-2xl border border-stone-200/40 hover:bg-stone-50 hover:border-stone-200 transition-all"
-                >
-                  <div className="min-w-0">
-                    <p className="text-stone-800 font-semibold truncate text-sm">
-                      {h.title}
-                    </p>
-                    <p className="text-[11px] text-stone-400 mt-0.5">
-                      {h.completed_dates?.length || 0} completions total
-                    </p>
-                  </div>
-
-                  <span className="text-xs bg-amber-50 text-amber-700 font-bold px-2.5 py-1 rounded-lg border border-amber-200/40 shrink-0 flex items-center gap-0.5">
-                    🔥 {calculateStreak(h.completed_dates || [], h.rest_dates || [])}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
       </div>
